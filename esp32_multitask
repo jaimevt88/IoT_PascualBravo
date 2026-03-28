@@ -1,0 +1,63 @@
+const int sensorPin = 34;
+const int pwmPin = 2;
+
+unsigned long tSensor = 0;
+unsigned long tControl = 0;
+unsigned long tComm = 0;
+
+float temperature = 0;
+
+// --- ADQUISICIÓN ---
+float readSensor() {
+  int value = analogRead(sensorPin);
+  float voltage = value * (3.3 / 4095.0);
+  return voltage * 100;
+}
+
+// --- PROCESAMIENTO ---
+float filterTemp(float t) {
+  static float last = 0;
+  float filtered = 0.7 * last + 0.3 * t;
+  last = filtered;
+  return filtered;
+}
+
+// --- CONTROL ---
+void controlActuator(float t) {
+  int duty = map(t, 20, 40, 0, 255);
+  duty = constrain(duty, 0, 255);
+  analogWrite(pwmPin, duty);
+}
+
+// --- COMUNICACIÓN ---
+void sendData(float t) {
+  Serial.print("Temp: ");
+  Serial.println(t);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(pwmPin, OUTPUT);
+}
+
+void loop() {
+
+  // --- SENSOR ---
+  if (millis() - tSensor > 1000) {
+    tSensor = millis();
+    float raw = readSensor();
+    temperature = filterTemp(raw);
+  }
+
+  // --- CONTROL ---
+  if (millis() - tControl > 1000) {
+    tControl = millis();
+    controlActuator(temperature);
+  }
+
+  // --- COMUNICACIÓN ---
+  if (millis() - tComm > 3000) {
+    tComm = millis();
+    sendData(temperature);
+  }
+}
